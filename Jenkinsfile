@@ -1,69 +1,69 @@
 pipeline {
-    agent any
-
-    environment {
-        AWS_DEFAULT_REGION = 'ap-south-1'
+  agent any
+  environment {
+    AWS_ACCESS_KEY_ID     = credentials('AWS')
+    AWS_SECRET_ACCESS_KEY = credentials('AWS')
+    AWS_DEFAULT_REGION    = 'ap-south-1'
+  }
+  stages {
+    stage('Checkout SCM') {
+      steps {
+        checkout scm
+      }
     }
-
-    parameters {
-        booleanParam(name: 'APPLY_TF', defaultValue: false, description: 'Set to true to apply Terraform changes')
+    stage('Terraform Init & Apply') {
+      steps {
+        sh 'terraform init'
+        sh 'terraform apply -auto-approve'
+      }
     }
-
-    stages {
-
-        stage('Checkout SCM') {
-            steps {
-                git branch: 'main',
-                    url: 'https://github.com/imvignesh27/Test-repo'
-            }
-        }
-
-        stage('Terraform Init') {
-            steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'AWS'
-                ]]) {
-                    sh 'terraform init'
-                }
-            }
-        }
-
-        stage('Terraform Plan') {
-            steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'AWS'
-                ]]) {
-                    sh 'terraform plan -out=tfplan'
-                }
-            }
-        }
-
-        stage('Terraform Apply') {
-            when {
-                expression { return params.APPLY_TF == true }
-            }
-            steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: 'aws-creds'
-                ]]) {
-                    sh 'terraform apply -auto-approve tfplan'
-                }
-            }
-        }
+    stage('Trigger AWS Config Compliance Evaluation') {
+      steps {
+        // Manually trigger Config rule evaluation (optional - Config continuously runs evaluations)
+        sh '''
+          aws configservice start-config-rules-evaluation --config-rule-names s3-version-lifecycle-policy-check
+        '''
+      }
     }
+    stage('Check Compliance Status and Trigger Auto Remediation') {
+      steps {
+        script {
+          def compliance = sh (
+            script: '''
+              aws configservice describe-compliance-by-config-rule \
+                --config-rule-name s3-version-lifecycle-policy-check \
+                --query "ComplianceByConfigRules[0].ComplianceType" \
+                --output text
+            ''',
+            returnStdout: true
+          ).trim()
 
-    post {
-        success {
-            echo 'Terraform applied successfully!'
+          if (compliance != 'COMPLIANT') {
+            echo "Bucket is non-compliant, triggering remediation..."
+            // Trigger remediation execution on non-compliant resource
+            def bucket_name = sh (
+              script: '''
+                aws s3api list-buckets --query "Buckets[0].Name" --output text
+              ''',
+              returnStdout: true
+            ).trim()
+
+            sh """
+              aws ssm start-automation-execution \
+                --document-name AWS-UpdateS3BucketVersioning \
+                --parameters BucketName=${bucket_name},VersioningConfiguration=Enabled
+            """
+            error("Compliance violation found and remediation triggered. Please verify.")
+          } else {
+            echo "Bucket is CIS compliant."
+          }
         }
-        failure {
-            echo 'Build failed. Check logs for details.'
-        }
-        always {
-            archiveArtifacts artifacts: '**/*.tf', allowEmptyArchive: true
-        }
+      }
     }
+  }
+  post {
+    failure {
+      echo "Pipeline failed due to compliance issues or errors."
+    }
+  }
 }
