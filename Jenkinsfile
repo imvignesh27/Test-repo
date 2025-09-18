@@ -27,7 +27,7 @@ pipeline {
       steps {
         withCredentials([[
           $class: 'AmazonWebServicesCredentialsBinding',
-          credentialsId: 'jenkins-aws-access-key-id'
+          credentialsId: 'AWS'
         ]]) {
           sh 'terraform apply -auto-approve'
         }
@@ -38,7 +38,7 @@ pipeline {
       steps {
         withCredentials([[
           $class: 'AmazonWebServicesCredentialsBinding',
-          credentialsId: 'jenkins-aws-access-key-id'
+          credentialsId: 'AWS'
         ]]) {
           script {
             def compliance = sh(
