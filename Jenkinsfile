@@ -14,7 +14,10 @@ pipeline {
 
     stage('Terraform Init') {
       steps {
-        withAWS(credentials: 'AWS', region: "${AWS_DEFAULT_REGION}") {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'jenkins-aws-access-key-id'
+        ]]) {
           sh 'terraform init'
         }
       }
@@ -22,7 +25,10 @@ pipeline {
 
     stage('Terraform Apply') {
       steps {
-        withAWS(credentials: 'AWS', region: "${AWS_DEFAULT_REGION}") {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'jenkins-aws-access-key-id'
+        ]]) {
           sh 'terraform apply -auto-approve'
         }
       }
@@ -30,7 +36,10 @@ pipeline {
 
     stage('Check S3 Compliance') {
       steps {
-        withAWS(credentials: 'jenkins-aws-access-key-id', region: "${AWS_DEFAULT_REGION}") {
+        withCredentials([[
+          $class: 'AmazonWebServicesCredentialsBinding',
+          credentialsId: 'jenkins-aws-access-key-id'
+        ]]) {
           script {
             def compliance = sh(
               script: '''
