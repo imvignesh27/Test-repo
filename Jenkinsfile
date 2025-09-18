@@ -2,9 +2,7 @@ pipeline {
   agent any
 
   environment {
-    AWS_ACCESS_KEY_ID     = credentials('jenkins-aws-access-key-id')
-    AWS_SECRET_ACCESS_KEY = credentials('jenkins-aws-secret-access-key')
-    AWS_DEFAULT_REGION    = 'ap-south-1'
+    AWS_DEFAULT_REGION = 'ap-south-1'
   }
 
   stages {
@@ -16,34 +14,39 @@ pipeline {
 
     stage('Terraform Init') {
       steps {
-        sh 'terraform init'
+        withAWS(credentials: 'AWS', region: "${AWS_DEFAULT_REGION}") {
+          sh 'terraform init'
+        }
       }
     }
 
     stage('Terraform Apply') {
       steps {
-        // Use -auto-approve to skip manual approvals
-        sh 'terraform apply -auto-approve'
+        withAWS(credentials: 'AWS', region: "${AWS_DEFAULT_REGION}") {
+          sh 'terraform apply -auto-approve'
+        }
       }
     }
 
     stage('Check S3 Compliance') {
       steps {
-        script {
-          def compliance = sh (
-            script: '''
-              aws configservice describe-compliance-by-config-rule \
-                --config-rule-name s3-bucket-server-side-encryption-enabled \
-                --query "ComplianceByConfigRules[0].ComplianceType" \
-                --output text
-            ''',
-            returnStdout: true
-          ).trim()
+        withAWS(credentials: 'jenkins-aws-access-key-id', region: "${AWS_DEFAULT_REGION}") {
+          script {
+            def compliance = sh(
+              script: '''
+                aws configservice describe-compliance-by-config-rule \
+                  --config-rule-name s3-bucket-server-side-encryption-enabled \
+                  --query "ComplianceByConfigRules[0].ComplianceType" \
+                  --output text
+              ''',
+              returnStdout: true
+            ).trim()
 
-          if (compliance != 'COMPLIANT') {
-            error("S3 Bucket is NOT CIS compliant. Compliance status: ${compliance}")
-          } else {
-            echo "S3 Bucket is CIS compliant."
+            if (compliance != 'COMPLIANT') {
+              error("S3 Bucket is NOT CIS compliant. Compliance status: ${compliance}")
+            } else {
+              echo "S3 Bucket is CIS compliant."
+            }
           }
         }
       }
