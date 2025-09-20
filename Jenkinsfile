@@ -31,7 +31,8 @@ pipeline {
                     $class: 'AmazonWebServicesCredentialsBinding',
                     credentialsId: 'AWS'
                 ]]) {
-                    sh 'terraform plan -var-file=terraform.tfvars -out=tfplan'
+                    sh 'terraform apply -auto-approve tfplan -var-file=terraform.tfvars
+'
                 }
             }
         }
