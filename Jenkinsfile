@@ -13,7 +13,6 @@ pipeline {
                     url: 'https://github.com/imvignesh27/Test-repo'
             }
         }
-
         stage('Terraform Init') {
             steps {
                 withCredentials([[
@@ -24,7 +23,6 @@ pipeline {
                 }
             }
         }
-
         stage('Terraform Plan') {
             steps {
                 withCredentials([[
@@ -32,12 +30,9 @@ pipeline {
                     credentialsId: 'AWS'
                 ]]) {
                     sh "terraform plan -out=tfplan -var-file=terraform.tfvars"
-
-'
                 }
             }
         }
-
         stage('Terraform Apply') {
             when {
                 expression { return params.APPLY_TF == true }
@@ -52,13 +47,12 @@ pipeline {
             }
         }
     }
-
     post {
         success {
             echo 'Terraform pipeline executed successfully!'
         }
         failure {
-            echo 'uild failed. Check logs for details.'
+            echo 'Build failed. Check logs for details.'
         }
         always {
             archiveArtifacts artifacts: '**/*.tf', allowEmptyArchive: true
