@@ -2,33 +2,35 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.0"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.0"
+      version = ">= 4.0"
     }
   }
 
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.2.0"
 }
 
 provider "aws" {
-  region = "ap-south-1"
+  region = var.aws_region
 }
 
-resource "aws_config_config_rule" "s3_version_lifecycle" {
-  name = "s3-version-lifecycle-policy-check"
-  source {
-    owner             = "AWS"
-    source_identifier = "S3_VERSION_LIFECYCLE_POLICY_CHECK"
+# IAM User
+resource "aws_iam_user" "cis_user1" {
+  name = var.iam_user_name
+}
+
+# S3 Bucket
+resource "aws_s3_bucket" "cis_bucket" {
+  bucket = var.s3_bucket_name
+  tags = {
+    Name = "CIS Terraform S3 Bucket"
   }
 }
 
-resource "aws_config_remediation_configuration" "s3_remediate" {
-  config_rule_name = aws_config_config_rule.s3_version_lifecycle.name
-  target_id        = "AWS-UpdateS3BucketVersioning"
-  target_type      = "SSM_DOCUMENT"
-
-  automatic = true
+# EC2 Instance
+resource "aws_instance" "cis_instance" {
+  ami           = var.ec2_ami
+  instance_type = var.ec2_instance_type
+  tags = {
+    Name = "CIS Terraform EC2"
+  }
 }
