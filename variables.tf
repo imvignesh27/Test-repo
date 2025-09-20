@@ -1,24 +1,26 @@
-# AWS Region
 variable "aws_region" {
-  description = "AWS region to deploy resources in"
+  description = "AWS region to deploy resources"
   type        = string
+  default     = "ap-south-1"
 }
 
-# S3 Bucket Name
+variable "iam_user_name" {
+  description = "IAM user name"
+  type        = string
+  default     = "cis_user1"
+}
+
 variable "s3_bucket_name" {
-  description = "Name of the S3 bucket"
+  description = "S3 bucket name (must be unique globally)"
   type        = string
 }
 
-# EC2 AMI ID
 variable "ec2_ami" {
-  description = "AMI ID for the EC2 instance"
+  description = "AMI ID to use for EC2 instance"
   type        = string
 }
 
-# EC2 Instance Type
 variable "ec2_instance_type" {
   description = "EC2 instance type"
   type        = string
-  default     = "t2.micro"
 }
