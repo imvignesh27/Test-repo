@@ -49,11 +49,3 @@ resource "aws_instance" "cis_instance" {
     Name = "CIS Terraform EC2"
   }
 }
-
-resource "aws_instance" "cis_instance" {
-  ami           = var.ec2_ami
-  instance_type = var.ec2_instance_type
-  tags = {
-    Name = "CIS Terraform EC2"
-  }
-}
