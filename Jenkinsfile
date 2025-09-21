@@ -13,6 +13,40 @@ pipeline {
                     url: 'https://github.com/imvignesh27/Test-repo'
             }
         }
+        stage('Compliance Checks') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'AWS'
+                ]]) {
+                    script {
+                        // IAM Compliance Check: List policies and confirm Admin policy details
+                        echo "Checking IAM policies..."
+                        sh '''
+                            aws iam list-policies --scope Local
+                            aws iam get-policy --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+                        '''
+
+                        // S3 Compliance Check: Policy, ACL, and encryption presence
+                        echo "Checking S3 buckets..."
+                        sh '''
+                            for bucket in $(aws s3api list-buckets --query "Buckets[].Name" --output text); do
+                              aws s3api get-bucket-policy --bucket "$bucket" || echo "No policy found for $bucket."
+                              aws s3api get-bucket-acl --bucket "$bucket" || echo "No ACL found for $bucket."
+                              aws s3api get-bucket-encryption --bucket "$bucket" || echo "No encryption found for $bucket."
+                            done
+                        '''
+
+                        // EC2 Compliance Check: IMDSv2 on all instances and default security groups
+                        echo "Checking EC2 instances..."
+                        sh '''
+                            aws ec2 describe-instances --query "Reservations[*].Instances[*].MetadataOptions"
+                            aws ec2 describe-security-groups --query "SecurityGroups[?GroupName==`default`]"
+                        '''
+                    }
+                }
+            }
+        }
         stage('Terraform Init') {
             steps {
                 withCredentials([[
@@ -29,17 +63,13 @@ pipeline {
                     $class: 'AmazonWebServicesCredentialsBinding',
                     credentialsId: 'AWS'
                 ]]) {
-                    // This call uses terraform.tfvars to provide parameters for:
-                    // - IAM user creation
-                    // - S3 bucket creation
-                    // - EC2 instance creation
                     sh "terraform plan -out=tfplan -var-file=terraform.tfvars"
                 }
             }
         }
         stage('Terraform Apply') {
             when {
-                expression { return params.APPLY_TF == true }
+                expression { return params.APPLY_TF }
             }
             steps {
                 withCredentials([[
