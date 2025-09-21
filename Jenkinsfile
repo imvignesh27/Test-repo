@@ -13,40 +13,6 @@ pipeline {
                     url: 'https://github.com/imvignesh27/Test-repo'
             }
         }
-        stage('Compliance Checks') {
-            steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'AWS'
-                ]]) {
-                    script {
-                        // IAM Compliance Check: List policies and confirm Admin policy details
-                        echo "Checking IAM policies..."
-                        sh '''
-                            aws iam list-policies --scope Local
-                            aws iam get-policy --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
-                        '''
-
-                        // S3 Compliance Check: Policy, ACL, and encryption presence
-                        echo "Checking S3 buckets..."
-                        sh '''
-                            for bucket in $(aws s3api list-buckets --query "Buckets[].Name" --output text); do
-                              aws s3api get-bucket-policy --bucket "$bucket" || echo "No policy found for $bucket."
-                              aws s3api get-bucket-acl --bucket "$bucket" || echo "No ACL found for $bucket."
-                              aws s3api get-bucket-encryption --bucket "$bucket" || echo "No encryption found for $bucket."
-                            done
-                        '''
-
-                        // EC2 Compliance Check: IMDSv2 on all instances and default security groups
-                        echo "Checking EC2 instances..."
-                        sh '''
-                            aws ec2 describe-instances --query "Reservations[*].Instances[*].MetadataOptions"
-                            aws ec2 describe-security-groups --query "SecurityGroups[?GroupName==`default`]"
-                        '''
-                    }
-                }
-            }
-        }
         stage('Terraform Init') {
             steps {
                 withCredentials([[
@@ -69,7 +35,7 @@ pipeline {
         }
         stage('Terraform Apply') {
             when {
-                expression { return params.APPLY_TF }
+                expression { return params.APPLY_TF == true }
             }
             steps {
                 withCredentials([[
@@ -83,10 +49,10 @@ pipeline {
     }
     post {
         success {
-            echo 'Terraform pipeline executed successfully! IAM user, S3 bucket, and EC2 instance created.'
+            echo 'Terraform pipeline executed successfully!'
         }
         failure {
-            echo 'Build failed. Please check logs for details.'
+            echo 'Build failed. Check logs for details.'
         }
         always {
             archiveArtifacts artifacts: '**/*.tf', allowEmptyArchive: true
