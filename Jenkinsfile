@@ -5,6 +5,7 @@ pipeline {
     }
     parameters {
         booleanParam(name: 'APPLY_TF', defaultValue: false, description: 'Set to true to apply Terraform changes')
+        booleanParam(name: 'APPLY_DESTROY', defaultValue: false, description: 'Set to true to destroy Terraform-managed infrastructure')
     }
     stages {
         stage('Checkout SCM') {
@@ -35,7 +36,7 @@ pipeline {
         }
         stage('Terraform Apply') {
             when {
-                expression { return params.APPLY_TF == true }
+                expression { return params.APPLY_TF }
             }
             steps {
                 withCredentials([[
@@ -44,6 +45,25 @@ pipeline {
                 ]]) {
                     sh 'terraform apply -auto-approve tfplan'
                 }
+            }
+        }
+        stage('Terraform Destroy') {
+            when {
+                expression { return params.APPLY_DESTROY }
+            }
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'AWS'
+                ]]) {
+                    // Destroy without plan file, directly using var-file
+                    sh 'terraform destroy -auto-approve -var-file=terraform.tfvars'
+                }
+            }
+        }
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
             }
         }
     }
@@ -55,7 +75,9 @@ pipeline {
             echo 'Build failed. Check logs for details.'
         }
         always {
+            // Archive .tf files and clean workspace as final step
             archiveArtifacts artifacts: '**/*.tf', allowEmptyArchive: true
+            cleanWs()
         }
     }
 }
