@@ -1,26 +1,32 @@
 variable "aws_region" {
-  description = "AWS region to deploy resources"
+  description = "The AWS region to deploy resources in"
   type        = string
   default     = "ap-south-1"
 }
 
 variable "iam_user_name" {
-  description = "IAM user name"
+  description = "IAM User name to create (CIS)"
   type        = string
-  default     = "cis_user1"
+  default     = cis-user-1
+}
+
+variable "non_cis_user_name" {
+  description = "IAM User name to create (Non-CIS)"
+  type        = string
+  default     = non-cis-user-1
 }
 
 variable "s3_bucket_name" {
-  description = "S3 bucket name (must be unique globally)"
+  description = "S3 bucket name (CIS, must be unique)"
   type        = string
 }
 
-variable "ec2_ami" {
-  description = "AMI ID to use for EC2 instance"
+variable "noncis_bucket_name" {
+  description = "S3 bucket name (Non-CIS, must be unique)"
   type        = string
 }
 
 variable "ec2_instance_type" {
-  description = "EC2 instance type"
+  description = "EC2 Instance type"
   type        = string
 }
