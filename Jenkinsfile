@@ -8,32 +8,8 @@ pipeline {
         booleanParam(name: 'APPLY_DESTROY', defaultValue: false, description: 'Set to true to destroy Terraform-managed infrastructure')
     }
     stages {
-        stage('Checkout SCM') {
-            steps {
-                git branch: 'main',
-                    url: 'https://github.com/imvignesh27/Test-repo'
-            }
-        }
-        stage('Terraform Init') {
-            steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'AWS'
-                ]]) {
-                    sh 'terraform init'
-                }
-            }
-        }
-        stage('Terraform Plan') {
-            steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'AWS'
-                ]]) {
-                    sh "terraform plan -out=tfplan -var-file=terraform.tfvars"
-                }
-            }
-        }
+        // ... previous stages ...
+
         stage('Terraform Apply') {
             when {
                 expression { return params.APPLY_TF }
@@ -47,6 +23,30 @@ pipeline {
                 }
             }
         }
+
+        stage('Detect AWS Config Rules') {
+            when {
+                expression { return params.APPLY_TF }
+            }
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'AWS'
+                ]]) {
+                    script {
+                        def rules = ['ec2-imdsv2-check', 'iam-user-no-policies-check', 's3-version-lifecycle-policy-check']
+                        for (rule in rules) {
+                            def status = sh(
+                                script: "aws configservice describe-config-rules --config-rule-names ${rule} --region $AWS_DEFAULT_REGION --query 'ConfigRules[0].ConfigRuleState' --output text",
+                                returnStdout: true
+                            ).trim()
+                            echo "Config Rule ${rule} is in state: ${status}"
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Terraform Destroy') {
             when {
                 expression { return params.APPLY_DESTROY }
@@ -56,11 +56,11 @@ pipeline {
                     $class: 'AmazonWebServicesCredentialsBinding',
                     credentialsId: 'AWS'
                 ]]) {
-                    // Destroy without plan file, directly using var-file
                     sh 'terraform destroy -auto-approve -var-file=terraform.tfvars'
                 }
             }
         }
+
         stage('Clean Workspace') {
             steps {
                 cleanWs()
@@ -75,7 +75,6 @@ pipeline {
             echo 'Build failed. Check logs for details.'
         }
         always {
-            // Archive .tf files and clean workspace as final step
             archiveArtifacts artifacts: '**/*.tf', allowEmptyArchive: true
             cleanWs()
         }
