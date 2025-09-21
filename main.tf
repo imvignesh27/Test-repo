@@ -59,7 +59,7 @@ resource "aws_instance" "cis_instance" {
   }
 }
 
-resource "aws_instance" "cis_instance" {
+resource "aws_instance" "cis_instance2" {
   ami           = data.aws_ami.latest_amazon_linux.id
   instance_type = var.ec2_instance_type
   tags = {
