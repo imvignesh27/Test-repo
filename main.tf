@@ -132,6 +132,6 @@ resource "aws_instance" "non_cis_instance" {
   # No metadata_options block means it defaults to Optional (IMDSv1 allowed)
   
   tags = {
-    Name = "Non-CIS Terraform EC2 Instance2"
+    Name = "Non-CIS Terraform EC2 Instance"
   }
 }
