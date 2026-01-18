@@ -103,7 +103,7 @@ resource "aws_security_group" "cis_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/8"] # Internal Network Only
+    cidr_blocks = ["192.168.0.0/16"] # Internal Network Only
   }
 }
 
